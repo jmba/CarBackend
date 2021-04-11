@@ -1,16 +1,7 @@
 package com.udacity.vehicles.api;
 
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.udacity.vehicles.api.responses.CarsResponse;
 import com.udacity.vehicles.client.maps.MapsClient;
 import com.udacity.vehicles.client.prices.PriceClient;
 import com.udacity.vehicles.domain.Condition;
@@ -19,8 +10,6 @@ import com.udacity.vehicles.domain.car.Car;
 import com.udacity.vehicles.domain.car.Details;
 import com.udacity.vehicles.domain.manufacturer.Manufacturer;
 import com.udacity.vehicles.service.CarService;
-import java.net.URI;
-import java.util.Collections;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -33,6 +22,20 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
+
+import java.net.URI;
+import java.util.Collections;
+
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.samePropertyValuesAs;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Implements testing of the CarController class.
@@ -45,6 +48,9 @@ public class CarControllerTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Autowired
     private JacksonTester<Car> json;
@@ -91,12 +97,13 @@ public class CarControllerTest {
      */
     @Test
     public void listCars() throws Exception {
-        /**
-         * TODO: Add a test to check that the `get` method works by calling
-         *   the whole list of vehicles. This should utilize the car from `getCar()`
-         *   below (the vehicle will be the first in the list).
-         */
-
+        ResultActions resultActions = mvc.perform(get("/cars")).andExpect(status().isOk());
+        MvcResult result = resultActions.andReturn();
+        String contentAsString = result.getResponse().getContentAsString();
+        CarsResponse response = objectMapper.readValue(contentAsString, CarsResponse.class);
+        Car car = response._embedded.carList.get(0);
+        Car compareCar = getCar();
+        compareCars(car, compareCar);
     }
 
     /**
@@ -105,10 +112,13 @@ public class CarControllerTest {
      */
     @Test
     public void findCar() throws Exception {
-        /**
-         * TODO: Add a test to check that the `get` method works by calling
-         *   a vehicle by ID. This should utilize the car from `getCar()` below.
-         */
+        ResultActions resultActions = mvc.perform(get("/cars/" + 1)).andExpect(status().isOk());
+        MvcResult result = resultActions.andReturn();
+        String contentAsString = result.getResponse().getContentAsString();
+        Car car = objectMapper.readValue(contentAsString, Car.class);
+        assertThat(car, is(notNullValue()));
+        Car compareCar = getCar();
+        compareCars(car, compareCar);
     }
 
     /**
@@ -117,11 +127,7 @@ public class CarControllerTest {
      */
     @Test
     public void deleteCar() throws Exception {
-        /**
-         * TODO: Add a test to check whether a vehicle is appropriately deleted
-         *   when the `delete` method is called from the Car Controller. This
-         *   should utilize the car from `getCar()` below.
-         */
+        mvc.perform(delete("/cars/" + 1)).andExpect(status().isNoContent());
     }
 
     /**
@@ -146,5 +152,19 @@ public class CarControllerTest {
         car.setDetails(details);
         car.setCondition(Condition.USED);
         return car;
+    }
+
+    private void compareCars(Car one, Car two){
+        assertThat(one.getLocation(), samePropertyValuesAs(two.getLocation()));
+        assertThat(one.getDetails().getManufacturer(), samePropertyValuesAs(two.getDetails().getManufacturer()));
+        assertThat(one.getDetails().getModel(), samePropertyValuesAs(two.getDetails().getModel()));
+        assertThat(one.getDetails().getMileage(), samePropertyValuesAs(two.getDetails().getMileage()));
+        assertThat(one.getDetails().getExternalColor(), samePropertyValuesAs(two.getDetails().getExternalColor()));
+        assertThat(one.getDetails().getBody(), samePropertyValuesAs(two.getDetails().getBody()));
+        assertThat(one.getDetails().getEngine(), samePropertyValuesAs(two.getDetails().getEngine()));
+        assertThat(one.getDetails().getFuelType(), samePropertyValuesAs(two.getDetails().getFuelType()));
+        assertThat(one.getDetails().getModelYear(), samePropertyValuesAs(two.getDetails().getModelYear()));
+        assertThat(one.getDetails().getProductionYear(), samePropertyValuesAs(two.getDetails().getProductionYear()));
+        assertThat(one.getDetails().getNumberOfDoors(), samePropertyValuesAs(two.getDetails().getNumberOfDoors()));
     }
 }
